@@ -1,0 +1,150 @@
+\section{Literature Review}
+
+The primary aim of this paper is to outline a telemedicine system for diagnostic
+support in dermatoscopic and pharyngoscopic scans. Telemedicine refers to the
+use of electronic communication to deliver healthcare when patients and
+clinicians are in different locations. \cite{Field1996} It allows healthcare
+workers to assess, diagnose, and treat patients remotely through tools ranging
+from basic phone calls to video consultations and remote monitoring systems. The
+World Health Organization (WHO) further defines telemedicine as the use of information and communication technologies to exchange reliable medical
+information for diagnosis, treatment, prevention, research, and ongoing
+education. \cite{Dasgupta2008}
+
+AI has become a central part of many software-driven fields, and its role in telemedicine continues to grow \cite{Akila2025}. It supports remote care by
+improving efficiency, accuracy, and overall reach. Common uses include virtual triage, where AI reviews symptoms to help prioritize cases; remote patient
+monitoring through sensor data; automated analysis of medical images such as X-rays, MRIs, and CT scans; and predictive analytics for identifying health
+risks \cite{Akila2025,Swarno2025}. This work focuses on the imaging analysis component, applying AI to two types of scans: dermatoscopy and pharyngoscopy.
+
+
+In this review, we first cover the dermatoscopic analyses. Because dermatoscopic analysis relies heavily on the visual appearance of lesions, an accurate understanding of how human skin produces color is essential for interpreting these images. Differences in pigmentation, light absorption, and underlying chromophores directly influence the visual patterns detected by both clinicians and AI models. For this reason, we begin by outlining the biological basis of skin tones in humans. Skin color depends on how light interacts with the surface and deeper layers of the skin, influenced by several chromophores that
+absorb light at specific wavelengths. The main chromophores include oxyhaemoglobin (red), deoxygenated hemoglobin (dark red or brown), carotenoids (yellow-orange), bilirubin (yellow), biliverdin (green), and melanin (brown).
+The dermis contains vascular chromophores such as hemoglobin with relatively little melanin, while the epidermis contains melanin with minimal hemoglobin.
+The epidermis produces two forms of melanin: eumelanin and pheomelanin. Dark brown or black tones are associated with eumelanin, and light red or yellow
+tones with pheomelanin. Skin color varies with the total amount of melanin present \cite{OpenOximetry2024}.
+
+There are many objective methods for classifying skin tone. This includes the CIELAB color space, a three-dimensional system defined by the Commission Internationale de l’Eclairage (CIE). In this space, the L* and b* components relate to pigmentation, while a* is associated with erythema. CIELAB is designed to be more perceptually consistent than RGB, where numerical differences do not always correspond to how easily two colors can be distinguished. In LAB space,
+the distance between two points provides a measurable estimate of their visual
+difference \cite{Schanda2007}.
+
+
+Dimensions in the CIELAB colour space are defined as follows:
+
+\begin{itemize}
+    \item $L^*$: Lightness, ranging from 0 (black) to 100 (white)
+    \item $a^*$: Red--green axis on the chroma plane
+    \item $b^*$: Yellow--blue axis on the chroma plane
+\end{itemize}
+
+The \textit{Individual Typology Angle} (ITA) is a standardized metric used in dermatology and skin-tone analysis to quantify baseline skin pigmentation from image data. It is computed using the $L^*$ (lightness) and $b^*$ (yellowness--blueness) components of the CIE~Lab colour space. Proposed by Chardon \textit{et al.}~\cite{Chardon1991}, the ITA is defined as:
+
+\begin{equation}
+    \text{ITA} = \left[\arctan\left(\frac{L^* - 50}{b^*}\right)\right] \times \frac{180}{\pi}
+\end{equation}
+
+While ITA provides a quantitative, device-independent measure of skin pigmentation, clinical dermatology has long relied on categorical classifications to describe how skin responds to ultraviolet exposure. The most widely adopted system is the Fitzpatrick Skin Phototype (FSP), introduced by Fitzpatrick in 1975 to characterize skin reactivity to UV radiation and predict sunburn and tanning tendencies. \cite{12_fitzpatrick1975,13_fitzpatrick1988} Unlike ITA, which derives pigmentation from image-based colorimetric values, the Fitzpatrick scale groups individuals into discrete phototypes (I-VI) based on biological response and observable pigmentation patterns. Because of its extensive clinical use and continued relevance in dermatology and medical imaging research, it remains a key reference point especially when deciding on a key dataset for our specific use case — dermatoscopy for rural, underprivileged regions in India.
+
+Indian skin pigmentation spans over a wide range, from very fair, to deep brown, reflecting genetic diversity and regional patterns \cite{14_nouveau2016}.
+Dermatology research generally places Indian skin within Fitzpatrick Types III-VI. ITA-based classification maps these to Type III (28-41°), Type IV
+(10-28°), Type V (-10-10°), and Type VI (below -10°) \cite{14_nouveau2016}. Studies report that Type III is more common in North and Central India, while
+Type IV appears more often in Western and Southern regions \cite{15_sarangi2023}. Darker tones (Types V-VI) are most frequent in the far South, consistent with lower ITA values \cite{14_nouveau2016}. This variation in melanin levels creates
+challenges for AI dermatology systems that are often trained on lighter Fitzpatrick Types I-II, which can reduce diagnostic accuracy across India’s
+diverse skin tones.
+
+
+During our review, we found that skin colour agnosticism was a major problem across AI methodologies in the dermatoscopy space. The details of which are covered in Table \ref{table:lit-review}, which summarizes recent studies and dermatology datasets that address this problem that we found relevant to the matter on hand (Indian Skin Tones). It
+highlights work on skin tone diversity, dataset quality, and model performance across different phototypes. These include analyses of bias in existing
+datasets, the creation of datasets with broader skin tone representation, and methods to improve annotation quality and reduce leakage. 
+
+\begin{table*}[t]
+\centering
+\caption{Summary of Relevant Literature and Dermatology Datasets}
+\label{table:lit-review}
+\begin{tabular}{|p{2.5cm}|p{1cm}|p{11cm}|}
+\hline
+\textbf{Author(s)} & \textbf{Year} & \textbf{Key Findings} \\
+\hline
+
+Kinyanjui et al. & 2020 &
+Benchmark dermatology datasets (ISIC 2018, SD-198) predominantly contain lighter skin tones, with ITA values concentrated between 34.8° and 48°, indicating severe underrepresentation of darker phototypes. \cite{16_kinyanjui2020} \\
+\hline
+
+ISIC 2018 (Codella et al.) & 2019 &
+Benchmark dermatoscopic dataset widely used for melanoma classification; dominated by lighter skin tones and varied imaging conditions. \cite{17_codella2019} \\
+\hline
+
+SD\textendash198 (Sun et al.) & 2016 &
+Large clinical dermatology dataset across 198 conditions; limited darker-skin representation. \cite{18_sun2016} \\
+\hline
+
+Groh et al. & 2021 &
+Showed that CNN performance declines when diagnosing skin conditions on skin tones not represented in the training distribution, confirming phototype-related bias in dermatology AI. \cite{19_groh2021} \\
+\hline
+
+Alipour et al. & 2024 &
+Found that recent dermatology AI systems disproportionately benefit lighter skin groups and carry measurable performance gaps for darker tones. \cite{20_alipour2024} \\
+\hline
+
+Aggarwal et al. & 2021 &
+Identified representation and quality bias as major causes of reduced AI performance on darker skin in dermatology datasets. \cite{21_aggarwal2021} \\
+\hline
+
+Global Burden of Disease Study & 2013 &
+Reported skin diseases as the fourth-leading cause of nonfatal disability; highlighted global need for accurate dermatological diagnosis. \cite{22_gbd2013} \\
+\hline
+
+DermaAmin & N/A &
+Online dermatology atlas used as a major source for Fitzpatrick17k; includes heterogeneous imaging conditions. \cite{23_dermaamin} \\
+\hline
+
+Atlas Dermatologico & N/A &
+Clinical atlas contributing images to Fitzpatrick17k; offers broad condition coverage with inconsistent metadata. \cite{24_dermatologyatlas} \\
+\hline
+
+Fitzpatrick17k (Dataset release) & 2021 &
+Released a 16{,}577-image dermatology dataset with Fitzpatrick phototype labels derived from DermaAmin and Atlas Dermatologico to improve skin-tone diversity. \cite{23_dermaamin,24_dermatologyatlas,25_groh2022}\\
+\hline
+
+Pakzad et al. & 2025 &
+Identified major structural flaws in Fitzpatrick17k, including duplication, mislabeling, and poor image consistency. \cite{27_pakzad2022} \\
+\hline
+
+Abhishek et al. & 2025 &
+Independently confirmed quality issues and leakage in Fitzpatrick17k and quantified reduced classifier performance on darker phototypes. \cite{26_abhishek2025} \\
+\hline
+
+DermaMNIST (pre-correction) & 2020 &
+10{,}015-image benchmark from HAM10000; suffers from lesion-level leakage and limited darker-skin representation. \\
+\hline
+
+Abhishek et al., DermaMNIST-C & 2025 &
+Corrected DermaMNIST with lesion grouping to remove leakage in training and test splits. \\
+\hline
+
+Abhishek et al., DermaMNIST-E & 2025 &
+Extended DermaMNIST-C using ISIC images to increase diagnostic and phototype diversity. \\
+\hline
+
+Abhishek et al., Fitzpatrick17k-C & 2025 &
+Released cleaned Fitzpatrick17k with improved labels and lesion-level splits; achieved higher balanced accuracy on darker skin. \\
+\hline
+
+DermaCon-IN & 2025 &
+Introduced a dermatology dataset focused on Indian skin disorders and broader representation across Fitzpatrick Types III–VI. \\
+\hline
+
+\end{tabular}
+\end{table*}
+
+Proceeding onto pharyngoscopic analyses.  Pharyngoscopy is a medical examination technique used to visualize the pharynx (throat) and adjacent structures. Clinically, this is most commonly performed by a physician shining a bright light into the patient‘s mouth, sometimes using a small mirror or a fiberoptic scope to inspect the throat. \cite{28_ontosight_pharyngoscopy} This procedure is non-invasive and typically performed in an outpatient setting. The viability of telemedicine for laryngological diagnosis was proven in a seminal study that evaluated concordance rates between pre-laryngoscopy telemedicine encounters and follow-up in-person assessments with laryngoscopy. \cite{30_choi2021} Research has shown high reliability and accuracy in diagnosing various otolaryngological conditions, including otologic conditions, rhinosinusitis, peritonsillar abscess, and nasal fractures through telemedicine platforms. While direct laryngoscopy remains the gold standard for definitive diagnosis, telemedicine consultations have proven effective for initial assessment and empiric management until in-person laryngoscopy can be performed. The structure and dimensions of the pharynx are not uniform across all individuals, and emerging evidence indicates that these anatomical characteristics can indeed vary based on race and ethnicity. A significant study by Kollara et al. (2014) investigated the craniometric and velopharyngeal anatomy of young children aged 4 to 8 years from Black and White racial groups. \cite{29_kollara2015} 
+However, the difference is not as stark as it was in dermatoscopic scans, which is why we have left racial agnosticism for future scope in this solution.
+
+The Pharyngitis Dataset (v4) on Roboflow Universe comprises 329 annotated images evenly distributed across two classes: phar and nophar \cite{pharyngitis-dataset_dataset}. We ran certain augmentations to increase the number of trainable images to 559. All images are auto-oriented and statically cropped to the central 25-75\% region, focusing on pharyngeal anatomy; they are then resized to 640 x 640 pixels for input consistency. Data augmentation via horizontal and vertical flips, 90° rotations, and random crops (0-20\% zoom) doubles the training set, reflecting common strategies in medical imaging to improve generalization.  In our work, we explore the possibility of ViTs (Vision Transformers) in this line of disease detection as an approach to pharyngitis detection. Depicted in Figure \ref{figPharSamples} are some sample images from the Pharyngitis Dataset with their corresponding labels.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.5\linewidth]{images/roboflow_samples.png}}
+\caption{Samples of images from the Pharyngitis Dataset with the corresponding labels.}
+\label{figPharSamples}
+\end{figure}
+
+
+

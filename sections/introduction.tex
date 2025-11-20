@@ -1,0 +1,41 @@
+\section{Introduction}
+
+India continues to face a shortage of medical specialists, specifically those in ENT and dermatology. As of March 2023, more than 23,000 sanctioned medical posts were vacant across the country, with over 9,000 of these vacancies in primary health centres (PHCs) \cite{Mudur2024}. This gap persists even though the government has expanded medical training and health infrastructure in recent years \cite{PIB2025}. Estimates of the national doctor-to-population ratio vary. Government reports cite a ratio of 1:834, which includes both allopathic and AYUSH practitioners and assumes 80\% availability of registered doctors \cite{PIB2025,PTI2024}. Independent assessments and the National Health Profile 2019 have reported a lower ratio of about 1:1,457, indicating continuing concerns about workforce adequacy and distribution \cite{Swarno2025}.
+
+The shortage of specialists is especially visible in ENT and dermatology. India has about 12,000 ENT specialists for a population of more than 1.4 billion, giving a ratio of roughly 1:116{,}000. Dermatology shows a similar pattern, with around 11{,}000 dermatologists and a ratio of about 1:127{,}000 \cite{Dutta2025,BWHCW2025}. These numbers point to significant and frankly, major gaps in access to specialist care, particularly outside metro cities. More than 60\% of specialists work in urban regions, despite these areas accounting for only 30\% of the national population. Addressing this imbalance will require wider use of technology-supported systems that allow specialists to deliver guidance remotely, improving access to reliable diagnostics and care in under-served regions.
+
+To address these challenges, portable imaging devices, AI-based diagnostic
+methods, and telemedicine platforms offer a practical way forward. Recent work
+in embedded hardware has made this easier, with STM32-class systems running
+real-time operating environments such as Zephyr OS supporting open-source setups for reliable image
+capture and wireless transfer. When paired with AI inference pipelines, these
+devices can support non-specialist health workers in the early detection of
+abnormalities from both pharyngoscopic and dermatoscopic scans.
+
+In this paper, we present a telemedicine system aimed at strengthening
+healthcare support in rural settings. After much detailed review, we settled on the following problem statement:
+
+\begin{itemize}
+    \item Develop an imaging workflow for medical diagnostics focused on
+    pharyngoscopy (throat examination) and dermatoscopy (skin examination).
+    \item Integrate a low-cost camera with an STM microcontroller for image
+    acquisition.
+    \item Perform image analysis to provide diagnostic assistance.
+    \item Build a mobile application that supports clinical use by medical
+    professionals.
+\end{itemize}
+
+This paper describes the design and implementation of a smart imaging system for
+rural medical use. The system combines embedded hardware, wireless image
+transfer, on-device preprocessing, and a React Native mobile application for
+image review and diagnostic support. Its goal is to reduce delays in diagnosis,
+extend specialist access through telemedicine, and strengthen primary care in
+settings with limited resources.
+
+Figure \ref{figProposedSystem} shows the idea of the proposed system.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.9\linewidth]{images/proposed-system.png}}
+\caption{Basic Flow of the System.}
+\label{figProposedSystem}
+\end{figure}

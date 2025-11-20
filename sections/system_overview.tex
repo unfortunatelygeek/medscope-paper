@@ -1,0 +1,216 @@
+\section{System Overview}
+
+The proposed system is built around three main components: a camera module, a microcontroller-based processing unit, a mobile application that serves as the user interface, and a cloud-based ML-processing module. The camera, the microcontroller and the application are interconnected via a network to ensure seamless data flow. At the heart of the imaging system is the Arducam Mega 3MP camera, which communicates with the STM32L475 IoT Discovery Kit (DISCO L475 IOT1) over an SPI interface. This microcontroller board uses its onboard Wi-Fi to establish a connection with a remote TCP server, allowing real-time data transmission. The mobile application provides a user friendly interface to interact with our system. A high-level overview of our system architecture is depicted in Figure \ref{figSystemOverview}.
+
+% \begin{figure}[htbp]
+% \centerline{\includegraphics[width=0.7\linewidth]{images/system-overview.png}}
+% \caption{Block diagram of the complete system.}
+% \label{figSystemOverview}
+% \end{figure}
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=0.85\linewidth]{images/system-overview.png}
+    \caption{Block diagram of Medscope}
+    \label{figSystemOverview}
+\end{figure*}
+
+
+\subsection{Hardware Implementation}
+
+The proposed system comprises three primary components: a camera, a microcontroller-based processing and communication platform, and a mobile application serving as the control interface. These elements communicate over a wireless network to enable synchronized configuration, acquisition, and transmission of visual data. Figure X presents the system architecture, data flow, and communication interfaces.
+
+The imaging subsystem employs the Arducam Mega 3MP camera module. This module was selected for its capacity to satisfy AI-compatible image resolution requirements while maintaining compact form factor and low power consumption—characteristics necessary for embedded and IoT-class deployments. While the sensor does not conform to the standard 1080p (1920×1080) specification, it captures images at approximately 2048×1536 pixels, thereby exceeding minimum fidelity requirements for inference tasks including object detection, feature extraction, and segmentation. The camera interfaces with the STM32L475 via SPI and operates in trigger-based capture mode at 15 frames per second, generating data based on system-level events rather than through continuous streaming. \cite{arducam_mega3mp} This approach minimizes bandwidth usage and processing overhead while maintaining adequate temporal resolution for the target application.
+
+The STM32L475 IoT Discovery Kit (DISCO-L475-IOT01A) serves as the control and data handling node. The board incorporates an ARM Cortex-M4 microcontroller, providing computational efficiency with low power consumption. \cite{stm_b_l475_iot01a_specs} The platform includes integrated Wi-Fi, Bluetooth Low Energy, and NFC modules, eliminating the need for additional communication hardware during prototyping and deployment. \cite{stm_discovery_platform} The current implementation receives power via USB, though future versions will incorporate battery-based power sources for mobile or field applications. The system operates without external memory, GPIO expansion, or power regulation circuits beyond those integrated on the development board.
+
+Firmware execution utilizes the Zephyr Real-Time Operating System, selected for its modular architecture, hardware abstraction capabilities, and integrated networking stack. The native Net Management API controls the Wi-Fi subsystem and manages TCP socket-based communication. Although Zephyr supports multithreading and message-based concurrency models, the current implementation performs camera interfacing, image buffering, and network communication within a single-threaded execution model. \cite{zephyr_net_stack} This design simplifies firmware structure during early development while permitting future task partitioning based on latency or throughput requirements.
+
+The system employs the Transmission Control Protocol (TCP) for communication between the microcontroller and remote endpoint. TCP was selected for its reliability guarantees, including in-order packet delivery, retransmission handling, and error checking mechanisms. These characteristics are necessary when transferring image data, where packet corruption can degrade inference accuracy or prevent image reconstruction. In the current configuration, the remote TCP server operates on the mobile device, which also functions as the control interface. The server receives and stores frame data while executing an onboard AI inference model that processes images transmitted from the microcontroller.
+The user-facing mobile application establishes a direct TCP connection to the microcontroller and provides configuration controls, live capture monitoring, and system diagnostics through an interactive graphical interface. This design abstracts the complexity of embedded hardware and low-level firmware operations, allowing end users to interact with the system through intuitive interfaces and real-time visual feedback.
+
+\subsection{Software Implementation}
+
+The mobile application for this project was developed using Expo, leveraging its integrated React Native ecosystem and native build capabilities. Expo was chosen primarily for its streamlined development workflow, robust debugging tools, and its ability to generate production-ready Android builds without requiring extensive native configuration. The application’s primary responsibilities were: initiating image capture on the medical device, receiving the resulting JPEG image over a network socket, encoding this image for transmission, and forwarding it to the appropriate machine learning endpoint for inference. To achieve these tasks, a reliable, low-latency communication mechanism was required between the mobile device and the embedded hardware. After evaluating multiple options, Wi-Fi based TCP communication was selected as the most stable and practical method for this project.
+
+The implemented architecture positions the embedded hardware device as a TCP server, and the mobile application as the TCP client. This arrangement is advantageous for several reasons. First, the device is the stable, known endpoint on the network, continuously listening for incoming connections on a predefined port. Second, mobile devices are inherently better suited to initiating connections rather than hosting persistent servers, due to operating system restrictions, NAT traversal issues, and background execution limitations. By allowing the device to act as the TCP server, the mobile application can reliably establish a connection whenever the user triggers the capture action.
+
+When the user navigates to either the dermatoscopy or pharyngoscopy interface and initiates a capture request, the application uses the expo-network library to create a TCP client socket. Through this socket, it sends a compact capture command string to the device. The medical imaging device processes this command, performs the appropriate optical capture, and streams the resulting JPEG binary data back through the same TCP channel. Once the application receives the JPEG payload, it performs Base64 encoding locally. This step is essential because the machine learning server expects inference requests in the form of JSON, where binary images must be safely embedded as Base64 strings. Depending on which interface the image was captured from, the app then issues an HTTP POST request to either the /dermatoscopy or /pharyngoscopy endpoint of the machine learning server. The server processes the image, performs inference, and returns the diagnostic output, which is displayed to the user on the app interface.
+
+\begin{figure}[htbp]
+\centerline{\includegraphics[width=0.7\linewidth]{images/app-flow.png}}
+\caption{Flow of application usage.}
+\label{figAppWorkflow}
+\end{figure}
+
+During the initial planning stage, Bluetooth communication was also considered as a potential alternative to Wi-Fi TCP. However, this direction was ultimately abandoned due to significant technical and feasibility limitations. The embedded hardware platform supports Bluetooth Low Energy (BLE) through STMicroelectronics' BLE stack, and at the firmware level, the project initially explored the use of stblesensor\_android, ST's official Android-side library. This library provides higher-level abstractions for interacting with BLE services exposed by ST development boards. However, stblesensor\_android is available exclusively for native Android development, and no maintained React Native or Expo-compatible wrapper exists.
+
+Using this library within a React Native or Expo project would have required building a full React Native native module that bindings this proprietary Android library to JavaScript. In the case of Expo, an additional Expo config plugin or custom development client would be required to bridge the native code and ensure compatibility with the managed environment. This introduces two major challenges. First, constructing such a native wrapper is non-trivial and was outside the scope of this project. Second, portions of ST’s BLE library are closed-source or only partially documented, making a complete interface layer difficult without reverse engineering internal behavior—something neither feasible nor appropriate for the constraints of this research.
+
+In contrast, adopting Wi-Fi TCP communication avoided all of these limitations. It provided a standardized protocol, required no complex bridging, and integrated cleanly with Expo through the expo-network package. This ensured a stable, maintainable, and portable application architecture capable of supporting the real-time communication required for medical image acquisition and classification.
+
+\subsection{Machine Learning Implementation}
+
+\subsubsection{Pharyngoscopy Model}
+
+Recent advancements in deep learning for medical imaging have introduced Vision Transformers (ViTs) \cite{39_dosovitskiy2020vit} as powerful alternatives to Convolutional Neural Networks (CNNs). In this section, we aggregate the key technical insights and equations that justify our choice of a vit\_base\_patch16\_224 model (A ViT Base Model trained on the ImageNet Corpus) \cite{34_vit_base_huggingface} for binary pharyngitis classification (healthy = “no”, inflamed = “phar”), culminating in a final validation accuracy of 93.9\%. \cite{40_wu2020visualtransformers,41_deng2009imagenet}
+
+The original dataset comprised 329 open-source images labelled 'phar' (unhealthy) and 
+'nophar' (healthy). We applied data augmentation to artificially expand the dataset by applying label-preserving transformations, acting as an implicit regularizer to mitigate overfitting. \cite{42_buslaev2018albumentations}  Both handcrafted and automated strategies have demonstrated substantial gains in classification accuracy and robustness. \cite{43_cubuk2020randaugment}
+
+Let $x$ denote an input image. We apply a composition of stochastic transformations:
+\[
+\tilde{x} = \mathcal{N}\bigl(\text{Flip}\bigl(\text{RandAugment}\bigl(\text{ColorJitter}\bigl(\text{Resize}(x)\bigr)\bigr)\bigr)\bigr)
+\]
+In our pipeline, $\text{Resize}(\cdot)$ standardizes every image to $224\times224$ pixels to maintain uniform input dimensions for the ViT, enabling stable batching and faster training convergence. \cite{39_dosovitskiy2020vit} Color-space augmentations collectively denoted by $\text{ColorJitter}(\cdot)$ introduce controlled perturbations to hue, saturation, and value, expanding the range of illumination and skin-tone conditions encountered during training; such variations help enlarge the effective color manifold and improve robustness under diverse lighting, as surveyed extensively in image augmentation literature \cite{44_shorten2019survey}. Independent RGB channel shifts further diversify the distribution of color intensities, simulating sensor inconsistencies and white-balance drift commonly addressed through augmentation methods like those discussed in Albumentations \cite{42_buslaev2018albumentations}. For broader regularization, $\text{RandAugment}(\cdot)$ applies $N$ operations with fixed magnitude $M$ chosen uniformly from a predefined augmentation pool. By reducing the traditional augmentation search over operation-probability-magnitude combinations to only two hyperparameters, $N$ and $M$, RandAugment provides strong regularization with minimal tuning overhead and has demonstrated competitive performance across vision benchmarks \cite{43_cubuk2020randaugment}.
+
+Finally, each image is normalized per channel:
+
+\begin{equation}
+\hat{x}_{c} = \frac{x_{c} - \mu_{c}}{\sigma_{c}}, 
+\end{equation}
+where $(\mu,\sigma)$ are the ImageNet‐derived mean and standard deviation vectors.\cite{41_deng2009imagenet}
+
+This standardization reduces internal covariate shift and accelerates training [45]. We implement a custom PharyngitisDataset that: 
+
+\begin{itemize}
+  \item Expects a root directory with one subfolder per class (\texttt{no}, \texttt{phar}).
+  \item Builds an index of all \texttt{*.png}, \texttt{*.jpg}, \texttt{*.jpeg} samples.
+  \item Applies torchvision transforms (\texttt{train\_transform}, \texttt{val\_test\_transform}) on-the-fly.
+  \item Handles loading errors by returning a zero-tensor of shape $(3\times \text{IMG\_SIZE}\times \text{IMG\_SIZE})$ as a fallback.
+\end{itemize}
+
+We then wrap each split in a \texttt{DataLoader} with batch size 32, shuffling for training only.
+
+To mitigate class imbalance (\(\{268,192\}\) samples), we compute per-class weights
+\[
+  w_i \;=\; \frac{1/\mathrm{count}_i}{\sum_j (1/\mathrm{count}_j)} \times C,
+\]
+and pass these to \texttt{CrossEntropyLoss} with label smoothing \(\epsilon=0.05\).
+
+We fine-tune our ImageNet pre‐trained Vision Transformer (vit–base–patch16–224):
+\begin{itemize}
+  \item Input: $224\times224$ RGB images.
+  \item Frozen parameters: the first 100 parameter tensors to reduce overfitting.
+  \item Modified head: Dropout(0.2) \(\to\) Linear$(D,\,2)$ for our binary classification.
+\end{itemize}
+
+We fine-tune with binary cross-entropy over a batch of size \(B\):
+\[
+  \mathcal{L}_{\mathrm{BCE}}
+  = -\frac{1}{B}\sum_{i=1}^B
+    \bigl[y_i\log\hat{y}_i + (1 - y_i)\log(1 - \hat{y}_i)\bigr].
+\]
+
+Optimization details:
+\begin{itemize}
+  \item \textbf{Optimizer:} AdamW with \(\eta=5\times10^{-5}\), weight decay \(\lambda=0.01\).  
+  \item \textbf{Scheduler:} Cosine decay with 2‐step linear warmup over \(T\) total steps.  
+\end{itemize}
+
+We fix \(\texttt{torch.manual\_seed}(42)\) prior to training for reproducibility.
+
+\paragraph{Results and Performance}
+
+The model reaches \textbf{93.9\%} validation accuracy on the binary
+pharyngitis classification task and shows strong generalization across
+held-out folds. Table \ref{tab:test_metrics} reports the model’s overall test performance, and Figure \ref{fig:phar_confusion_matrix} shows that the classifier distinguishes the two classes with minimal misclassification. The learning curves in Figure \ref{fig:learning_curves} indicate stable training behavior, with loss decreasing smoothly and accuracy improving consistently across epochs. Figure \ref{fig:phar_val_metrics} further tracks precision, recall, and F1 score over time, all of which remain high and well aligned throughout validation.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{l c}
+\hline
+\textbf{Metric} & \textbf{Value} \\
+\hline
+Accuracy  & 0.9394 \\
+Precision & 0.9465 \\
+Recall    & 0.9394 \\
+F1 Score  & 0.9395 \\
+\hline
+\end{tabular}
+\caption{Performance metrics on the test set.}
+\label{tab:test_metrics}
+\end{table}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\linewidth]{images/phar_confusion_matrix.png}
+    \caption{Confusion matrix on the test set.}
+    \label{fig:phar_confusion_matrix}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[Training and validation loss]{%
+        \includegraphics[width=0.47\linewidth]{images/phar_train_val_loss.png}%
+    }
+    \hfill
+    \subfloat[Training and validation accuracy]{%
+        \includegraphics[width=0.47\linewidth]{images/phar_train_val_acc.png}%
+    }
+    \caption{Learning curves over training epochs.}
+    \label{fig:learning_curves}
+\end{figure}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\linewidth]{images/phar_val_metrics.png}
+    \caption{Validation metrics: precision, recall, and F1 score.}
+    \label{fig:phar_val_metrics}
+\end{figure}
+
+The model therefore demonstrates effective performance for binary
+classification of pharyngoscopic images.
+
+\subsubsection{Dermatoscopy Model}
+
+To mitigate the skin-tone issue discussed in the Literature Review, we utilized the swim transformer model trained by Madarkar et al. \cite{46_dermaconIN2025} on the DermaCon-IN dataset proposed in the same paper. 
+
+The Swin Transformer architecture is well suited for dermatoscopic image analysis because it introduces a hierarchical, locality-aware self-attention mechanism that preserves fine-grained spatial structure while still modeling long-range dependencies. Unlike the original Vision Transformer, which applies global attention uniformly, Swin Transformer computes self-attention within shifted local windows, enabling efficient scaling to high-resolution medical images and improving sensitivity to subtle texture variations characteristic of skin lesions. \cite{47_liu2021swin,48_hatamizadeh2022swinunetr}
+
+\subsection{Server Implementation}
+
+Any image, irrespective of scan type, once collected from the respective HTTP endpoint, is first fed into a general color-correction pipeline designed to reduce illumination variability and improve the consistency of downstream feature extraction. The pipeline consists of two primary transformations: (1) gray-world white balancing and (2) contrast-brightness correction.
+
+First, the system applies a gray-world white balance correction, a classical assumption-driven algorithm widely used in computational color constancy. The gray-world hypothesis, introduced by Buchsbaum et al. (1980), states that under neutral illumination, the average reflectance of a scene should be achromatic. As a consequence, deviations from this average can be exploited to estimate and correct the scene's illuminant. \cite{31_buchsbaum1980} Practically, this entails computing the per-channel means of an input image and scaling each channel so that their averages converge to a target gray value. Variants of the gray-world algorithm are commonly used in medical imaging because of their robustness and computational efficiency, making them suitable for scenarios with significant lighting variability or resource constraints as we inevitably will face while capturing images in rural settings. 
+
+In our implementation, the raw RGB image is converted to OpenCV's BGR representation, cast to floating-point format, and each channel is rescaled according to the classical gray-world formulation, ensuring that over- or under-exposed color channels are compensated appropriately. \cite{moukthika2025}
+
+After white balancing, the pipeline performs brightness and contrast
+normalization using a linear intensity transformation. This step employs
+OpenCV's \texttt{convertScaleAbs} operation, equivalent to applying the mapping
+\( I' = \alpha I + \beta \), where \(\alpha\) adjusts contrast and \(\beta\) controls
+global brightness \cite{moukthika2025}. Such linear corrections are standard
+practice in dermatological image preprocessing, where lesion visibility is
+sensitive to low-contrast conditions and nonuniform illumination, as shown in
+Han et al., 2018 \cite{33_han2018}. Increasing \(\alpha\) enhances differences
+between lesion borders and surrounding skin, while \(\beta\) provides an offset
+to mitigate underexposure introduced by variable acquisition environments common
+in mobile or telemedicine-based imaging systems.
+
+The resulting standardized image serves as the input for the individual inference pipelines.
+
+\subsubsection{Pharyngoscopy}
+
+An image posted to the pharyngoscopy endpoint is sent to a specific preprocessing service after the standardization. The uploaded image bytes are first decoded then force-converted to the RGB color space. Invalid or corrupted inputs that cannot be opened as RGB images are rejected, guaranteeing that only valid three-channel imagery proceeds through the pipeline.
+The image is resized to 224×224 pixels, matching the fixed dimensions expected by ViT-Base models trained on the ImageNet corpus. \cite{34_vit_base_huggingface} This resizing step aligns the image with the transformer's patch extraction mechanism, which divides the 224×224 input into a sequence of 16×16 patches before embedding. The image is next converted into a PyTorch tensor and normalized using the standard ImageNet statistics (mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]). \cite{35_torchvision_models,41_deng2009imagenet} 
+After preprocessing, the tensor is expanded to a batch of size one and passed to an ONNX Runtime inference session initialized with the CPU execution provider. ONNX Runtime is used as the inference backend because it provides a hardware-agnostic, highly optimized execution environment for deploying deep learning models across diverse platforms. The framework supports graph optimizations, operator fusion, and accelerated CPU execution, which reduces latency and improves throughput for transformer-based models. \cite{36_bai2019,37_onnxruntime_build} This portability and efficiency have been repeatedly demonstrated in benchmarking studies. \cite{36_bai2019} The ONNX ViT model consumes the input tensor exactly in this format: a single batch of a normalized 3×224×224 image. At inference, the model converts the image into a sequence of patch embeddings, applies multi-head self-attention across the resulting token sequence, and outputs a classification logits vector corresponding to the model's label space.
+The raw logits returned by ONNX Runtime are converted into probabilities via softmax. \cite{38_bridle_stochastic} The highest-probability class index is extracted, and a final human-readable label is assigned based on the provided label list. A confidence score, equal to the predicted class probability, is also returned.
+
+\subsubsection{Dermatoscopy}
+An image submitted to the dermatoscopy endpoint is processed through a dedicated preprocessing and inference pipeline designed for Swin Transformer–based classification. Upon receipt, the uploaded image bytes are decoded and force-converted to the RGB color space. Inputs that cannot be opened as valid RGB images are rejected immediately, ensuring that only well-formed three-channel dermatoscopic images proceed to subsequent stages.
+The preprocessing stage resizes the image to 512×512 pixels, aligning with the spatial resolution expected by the Swin-Base Patch4-Window12-384 architecture adapted for 512-pixel inputs.\cite{49_swin_base_huggingface} Swin Transformer models benefit from higher-resolution imagery because their hierarchical shifted-window attention mechanism preserves local texture patterns while still modeling global contextual structure \cite{47_liu2021swin}. 
+Following resizing, the image is converted into a PyTorch tensor and normalized using DermaCon-In specific statistics (mean = [0.5375, 0.4588, 0.4038], std = [0.2163, 0.2037, 0.2014]). These normalization constants were computed by Madarkar et al. for the DermaCon-IN dataset, ensuring that input distributions during deployment match those used during training.\cite{46_dermaconIN2025}
+
+The preprocessed tensor is expanded to a batch of size one and passed to a Swin-Base model instantiated using the timm library. The model weights are loaded from a checkpoint trained on DermaCon-IN \cite{46_dermaconIN2025}. At inference, the Swin architecture partitions the image into 4×4 patches, constructs a hierarchical representation through shifted-window self-attention, and progressively aggregates multi-scale features. This architecture has demonstrated strong performance in medical imaging tasks that require high spatial fidelity and structural sensitivity, including dermatology \cite{47_liu2021swin,48_hatamizadeh2022swinunetr}.
+The model outputs a logits vector over the target dermatological classes. These logits are converted into normalized probabilities using the softmax function \cite{38_bridle_stochastic}. The class with the highest probability is selected as the predicted diagnosis, and a corresponding confidence score is extracted. Following the training protocol of the DermaCon-IN model, predictions with a confidence score below 0.5 are mapped to “Healthy Skin,” reducing the rate of low-certainty misclassifications.
+In addition to the top-1 prediction, the system returns class-wise probabilities for all available labels, enabling downstream applications such as uncertainty estimation or multi-class clinical review.
+
+
+
+
+
+
+
+
+ 
